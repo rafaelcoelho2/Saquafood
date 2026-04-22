@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Painel Admin</title>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-xl mx-auto">
+        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6">
+            <h2 id="titulo-form" class="font-bold mb-4 text-blue-600">CADASTRAR NOVO</h2>
+            <input id="prod_id" type="hidden">
+            <input id="nome" type="text" placeholder="Nome" class="w-full p-3 border rounded-xl mb-2">
+            <input id="preco" type="number" placeholder="Preço" class="w-full p-3 border rounded-xl mb-2">
+            <input id="imagem" type="text" placeholder="Link da Foto" class="w-full p-3 border rounded-xl mb-4">
+            <button onclick="enviar()" id="btn-enviar" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg">SALVAR</button>
+            <button onclick="limpar()" id="btn-cancelar" class="hidden w-full mt-2 text-gray-500 text-sm">Cancelar Edição</button>
+        </div>
+
+        <div id="lista-admin" class="space-y-3"></div>
+    </div>
+
+    <script>
+        async function carregar() {
+            const res = await fetch('/api/produtos');
+            const produtos = await res.json();
+            const lista = document.getElementById('lista-admin');
+            lista.innerHTML = '';
+            produtos.forEach(p => {
+                lista.innerHTML += `
+                <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.imagem}" class="w-12 h-12 rounded-lg object-cover">
+                        <div><p class="font-bold">${p.nome}</p><p class="text-blue-600">R$ ${p.preco}</p></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick='prepararEdicao(${JSON.stringify(p)})' class="text-blue-500 font-bold">Editar</button>
+                        <button onclick="remover(${p.id})" class="text-red-500 font-bold">X</button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function prepararEdicao(p) {
+            document.getElementById('prod_id').value = p.id;
+            document.getElementById('nome').value = p.nome;
+            document.getElementById('preco').value = p.preco;
+            document.getElementById('imagem').value = p.imagem;
+            document.getElementById('titulo-form').innerText = "EDITANDO: " + p.nome;
+            document.getElementById('btn-enviar').classList.replace('bg-blue-600', 'bg-orange-500');
+            document.getElementById('btn-cancelar').classList.remove('hidden');
+        }
+
+        async function enviar() {
+            const id = document.getElementById('prod_id').value;
+            const n = document.getElementById('nome').value;
+            const p = document.getElementById('preco').value;
+            const i = document.getElementById('imagem').value;
+            const url = id ? `/api/admin/produtos/${id}?nome=${n}&preco=${p}&imagem=${i}` : `/api/admin/produtos?nome=${n}&preco=${p}&imagem=${i}`;
+            await fetch(url, { method: id ? 'PUT' : 'POST' });
+            limpar(); carregar();
+        }
+
+        function limpar() {
+            document.getElementById('prod_id').value = '';
+            document.getElementById('nome').value = '';
+            document.getElementById('preco').value = '';
+            document.getElementById('imagem').value = '';
+            document.getElementById('titulo-form').innerText = "CADASTRAR NOVO";
+            document.getElementById('btn-enviar').classList.replace('bg-orange-500', 'bg-blue-600');
+            document.getElementById('btn-cancelar').classList.add('hidden');
+        }
+
+        async function remover(id) { if(confirm('Apagar?')) { await fetch('/api/admin/produtos/'+id, {method:'DELETE'}); carregar(); } }
+        carregar();
+    </script>
+</body>
+</html>

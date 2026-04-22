@@ -1,97 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Saquá Food</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
+    <title>Saquá Food - Cardápio</title>
 </head>
-<body class="bg-slate-100 pb-10">
-    <div class="bg-blue-600 text-white p-6 shadow-md text-center">
-        <h1 class="text-3xl font-bold italic">🏄‍♂️ SAQUÁ FOOD</h1>
-    </div>
+<body class="bg-gray-50 pb-32">
+    <header class="bg-blue-600 p-6 text-white text-center shadow-lg mb-6">
+        <h1 class="text-3xl font-bold italic">SAQUÁ FOOD 🍔</h1>
+        <p class="text-sm opacity-80">O melhor de Saquarema</p>
+    </header>
 
-    <div id="form-container" class="p-4 max-w-md mx-auto mt-4 bg-white rounded-xl shadow-sm border border-blue-100 transition-all">
-        <h2 id="titulo-form" class="font-bold text-blue-800 mb-2 text-center">Cadastrar Lanche</h2>
-        <input type="hidden" id="edit-id">
-        <div class="space-y-3">
-            <input type="text" id="nome" placeholder="Nome" class="w-full p-2 border rounded-lg">
-            <input type="number" id="preco" placeholder="Preço" class="w-full p-2 border rounded-lg">
-            <input type="text" id="imagem" placeholder="Link da Foto" class="w-full p-2 border rounded-lg text-sm">
-            <button id="btn-salvar" onclick="salvar()" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">Salvar</button>
-            <button id="btn-cancelar" onclick="cancelarEdicao()" class="hidden w-full bg-gray-400 text-white font-bold py-2 rounded-lg">Cancelar</button>
+    <div id="cardapio" class="p-4 max-w-md mx-auto grid gap-4"></div>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] border-t rounded-t-3xl">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <p class="text-gray-500 text-sm">Seu Pedido:</p>
+                <p id="total-carrinho" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+            </div>
+            <button onclick="enviarZap()" class="bg-green-500 text-white px-8 py-3 rounded-2xl font-bold shadow-lg">
+                PEDIR AGORA 🚀
+            </button>
         </div>
     </div>
 
-    <div class="p-4 max-w-md mx-auto space-y-4" id="itens"></div>
-
     <script>
-        let editandoId = null;
+        let carrinho = {};
 
-        function carregar() {
-            fetch('/cardapio').then(res => res.json()).then(data => {
-                const div = document.getElementById('itens');
-                div.innerHTML = "";
-                data.forEach(item => {
-                    div.innerHTML += `
-                        <div class="bg-white rounded-xl shadow-md overflow-hidden flex border border-gray-100">
-                            <img src="${item.imagem}" class="w-24 h-24 object-cover">
-                            <div class="p-3 flex-1">
-                                <h3 class="font-bold text-slate-800">${item.nome}</h3>
-                                <p class="text-green-600 font-bold">R$ ${item.preco.toFixed(2)}</p>
-                                <div class="flex gap-4 mt-2">
-                                    <button onclick='prepararEdicao(${JSON.stringify(item)})' class="text-blue-500 text-xs font-bold uppercase">Editar</button>
-                                    <button onclick="remover(${item.id})" class="text-red-400 text-xs font-bold uppercase">Sair</button>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-            });
+        async function carregarCardapio() {
+            const res = await fetch('/api/produtos');
+            const produtos = await res.json();
+            const div = document.getElementById('cardapio');
+            div.innerHTML = produtos.map(p => `
+                <div class="bg-white rounded-3xl p-4 shadow-sm flex items-center gap-4 border">
+                    <img src="${p.imagem}" class="w-16 h-16 rounded-2xl object-cover">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-800">${p.nome}</h3>
+                        <p class="text-blue-600 font-bold">R$ ${p.preco.toFixed(2)}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="remover('${p.nome}')" class="bg-gray-100 px-3 py-1 rounded-lg font-bold text-gray-500">-</button>
+                        <span id="qtd-${p.nome.replace(/\s+/g, '')}" class="font-bold w-4 text-center">0</span>
+                        <button onclick="add('${p.nome}', ${p.preco})" class="bg-blue-100 px-3 py-1 rounded-lg font-bold text-blue-600">+</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function prepararEdicao(item) {
-            editandoId = item.id;
-            document.getElementById('nome').value = item.nome;
-            document.getElementById('preco').value = item.preco;
-            document.getElementById('imagem').value = item.imagem;
+        function add(nome, preco) {
+            if (!carrinho[nome]) {
+                carrinho[nome] = { preco: preco, qtd: 0 };
+            }
+            carrinho[nome].qtd++;
+            atualizarInterface(nome);
+        }
+
+        function remover(nome) {
+            if (carrinho[nome] && carrinho[nome].qtd > 0) {
+                carrinho[nome].qtd--;
+                if (carrinho[nome].qtd === 0) delete carrinho[nome];
+                atualizarInterface(nome);
+            }
+        }
+
+        function atualizarInterface(nome) {
+            const id = "qtd-" + nome.replace(/\s+/g, '');
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                elemento.innerText = carrinho[nome] ? carrinho[nome].qtd : 0;
+            }
             
-            document.getElementById('titulo-form').innerText = "Editando Item";
-            document.getElementById('form-container').classList.replace('border-blue-100', 'border-orange-400');
-            document.getElementById('btn-salvar').classList.replace('bg-blue-600', 'bg-orange-500');
-            document.getElementById('btn-cancelar').classList.remove('hidden');
+            let total = 0;
+            for (let item in carrinho) {
+                total += carrinho[item].preco * carrinho[item].qtd;
+            }
+            document.getElementById('total-carrinho').innerText = "R$ " + total.toFixed(2);
         }
 
-        function cancelarEdicao() {
-            editandoId = null;
-            document.getElementById('nome').value = "";
-            document.getElementById('preco').value = "";
-            document.getElementById('imagem').value = "";
-            document.getElementById('titulo-form').innerText = "Cadastrar Lanche";
-            document.getElementById('form-container').classList.replace('border-orange-400', 'border-blue-100');
-            document.getElementById('btn-salvar').classList.replace('bg-orange-500', 'bg-blue-600');
-            document.getElementById('btn-cancelar').classList.add('hidden');
-        }
+        function enviarZap() {
+            let itens = Object.keys(carrinho).filter(k => carrinho[k].qtd > 0);
+            if (itens.length === 0) return alert("Adicione algo ao carrinho!");
 
-        function salvar() {
-            const n = document.getElementById('nome').value;
-            const p = document.getElementById('preco').value;
-            const i = document.getElementById('imagem').value;
+            let texto = "*PEDIDO SAQUÁ FOOD*%0A%0A";
+            let total = 0;
             
-            let url = editandoId 
-                ? `/editar_prod?id=${editandoId}&nome=${n}&preco=${p}&imagem=${i}`
-                : `/adicionar?nome=${n}&preco=${p}&imagem=${i}`;
-
-            fetch(url).then(() => {
-                cancelarEdicao();
-                carregar();
+            itens.forEach(nome => {
+                let subtotal = carrinho[nome].qtd * carrinho[nome].preco;
+                texto += `✅ *${carrinho[nome].qtd}x* ${nome} - R$ ${subtotal.toFixed(2)}%0A`;
+                total += subtotal;
             });
+
+            texto += `%0A*TOTAL: R$ ${total.toFixed(2)}*%0A%0A_Favor confirmar o pedido!_`;
+            
+            // COLOQUE SEU ZAP ABAIXO
+            const meuZap = "5521999999999"; 
+            window.location.href = `https://wa.me/${meuZap}?text=${texto}`;
         }
 
-        function remover(id) {
-            if(confirm("Excluir?")) fetch('/deletar/'+id).then(() => carregar());
-        }
-
-        carregar();
+        carregarCardapio();
     </script>
 </body>
 </html>
