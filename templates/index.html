@@ -3,102 +3,100 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Saquá Food - Cardápio</title>
+    <title>Saquá Food</title>
 </head>
-<body class="bg-gray-50 pb-32">
-    <header class="bg-blue-600 p-6 text-white text-center shadow-lg mb-6">
-        <h1 class="text-3xl font-bold italic">SAQUÁ FOOD 🍔</h1>
-        <p class="text-sm opacity-80">O melhor de Saquarema</p>
+<body class="bg-gray-50 pb-40">
+    <header class="bg-blue-600 p-6 text-white text-center shadow-lg mb-4">
+        <h1 class="text-3xl font-bold italic text-yellow-300">SAQUÁ FOOD 🍔</h1>
     </header>
 
-    <div id="cardapio" class="p-4 max-w-md mx-auto grid gap-4"></div>
+    <div id="cardapio" class="p-4 max-w-md mx-auto grid gap-3"></div>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] border-t rounded-t-3xl">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <div>
-                <p class="text-gray-500 text-sm">Seu Pedido:</p>
-                <p id="total-carrinho" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+    <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t rounded-t-[2rem] z-50">
+        <div class="max-w-md mx-auto">
+            <select id="select-bairro" onchange="atualizarTotal()" class="w-full p-3 mb-3 border rounded-xl bg-gray-50 font-bold text-gray-700">
+                <option value="0">🛵 Escolha o bairro (Entrega)</option>
+            </select>
+            <div class="flex justify-between items-center px-2">
+                <div class="leading-tight">
+                    <p class="text-gray-400 text-xs">Total com entrega:</p>
+                    <p id="total-carrinho" class="text-2xl font-black text-blue-600 text-yellow-500">R$ 0,00</p>
+                </div>
+                <button onclick="enviarZap()" class="bg-green-500 text-white px-8 py-4 rounded-2xl font-bold shadow-lg">PEDIR AGORA</button>
             </div>
-            <button onclick="enviarZap()" class="bg-green-500 text-white px-8 py-3 rounded-2xl font-bold shadow-lg">
-                PEDIR AGORA 🚀
-            </button>
         </div>
     </div>
 
     <script>
         let carrinho = {};
+        let bairros = [];
 
-        async function carregarCardapio() {
-            const res = await fetch('/api/produtos');
-            const produtos = await res.json();
-            const div = document.getElementById('cardapio');
-            div.innerHTML = produtos.map(p => `
-                <div class="bg-white rounded-3xl p-4 shadow-sm flex items-center gap-4 border">
-                    <img src="${p.imagem}" class="w-16 h-16 rounded-2xl object-cover">
+        async function carregar() {
+            const resP = await fetch('/api/produtos');
+            const produtos = await resP.json();
+            document.getElementById('cardapio').innerHTML = produtos.map(p => `
+                <div class="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 border border-gray-100">
+                    <img src="${p.imagem}" class="w-16 h-16 rounded-xl object-cover">
                     <div class="flex-1">
-                        <h3 class="font-bold text-gray-800">${p.nome}</h3>
+                        <h3 class="font-bold text-gray-800 text-sm">${p.nome}</h3>
                         <p class="text-blue-600 font-bold">R$ ${p.preco.toFixed(2)}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="remover('${p.nome}')" class="bg-gray-100 px-3 py-1 rounded-lg font-bold text-gray-500">-</button>
-                        <span id="qtd-${p.nome.replace(/\s+/g, '')}" class="font-bold w-4 text-center">0</span>
-                        <button onclick="add('${p.nome}', ${p.preco})" class="bg-blue-100 px-3 py-1 rounded-lg font-bold text-blue-600">+</button>
+                        <button onclick="mudar('${p.nome}', ${p.preco}, -1)" class="w-8 h-8 bg-gray-100 rounded-full font-bold">-</button>
+                        <span id="qtd-${p.nome.replace(/\s+/g,'')}" class="font-bold">0</span>
+                        <button onclick="mudar('${p.nome}', ${p.preco}, 1)" class="w-8 h-8 bg-blue-600 text-white rounded-full font-bold">+</button>
                     </div>
-                </div>
-            `).join('');
+                </div>`).join('');
+
+            const resB = await fetch('/api/bairros');
+            bairros = await resB.json();
+            const select = document.getElementById('select-bairro');
+            bairros.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.taxa;
+                opt.text = `📍 ${b.nome} (R$ ${b.taxa.toFixed(2)})`;
+                select.add(opt);
+            });
         }
 
-        function add(nome, preco) {
-            if (!carrinho[nome]) {
-                carrinho[nome] = { preco: preco, qtd: 0 };
+        function mudar(nome, preco, val) {
+            if(!carrinho[nome]) carrinho[nome] = {preco, qtd: 0};
+            carrinho[nome].qtd += val;
+            if(carrinho[nome].qtd <= 0) {
+                carrinho[nome].qtd = 0;
+                document.getElementById('qtd-'+nome.replace(/\s+/g,'')).innerText = 0;
+            } else {
+                document.getElementById('qtd-'+nome.replace(/\s+/g,'')).innerText = carrinho[nome].qtd;
             }
-            carrinho[nome].qtd++;
-            atualizarInterface(nome);
+            atualizarTotal();
         }
 
-        function remover(nome) {
-            if (carrinho[nome] && carrinho[nome].qtd > 0) {
-                carrinho[nome].qtd--;
-                if (carrinho[nome].qtd === 0) delete carrinho[nome];
-                atualizarInterface(nome);
-            }
-        }
-
-        function atualizarInterface(nome) {
-            const id = "qtd-" + nome.replace(/\s+/g, '');
-            const elemento = document.getElementById(id);
-            if (elemento) {
-                elemento.innerText = carrinho[nome] ? carrinho[nome].qtd : 0;
-            }
-            
-            let total = 0;
-            for (let item in carrinho) {
-                total += carrinho[item].preco * carrinho[item].qtd;
-            }
-            document.getElementById('total-carrinho').innerText = "R$ " + total.toFixed(2);
+        function atualizarTotal() {
+            let subtotal = 0;
+            for(let k in carrinho) subtotal += carrinho[k].preco * carrinho[k].qtd;
+            const taxa = parseFloat(document.getElementById('select-bairro').value);
+            document.getElementById('total-carrinho').innerText = "R$ " + (subtotal + taxa).toFixed(2);
         }
 
         function enviarZap() {
-            let itens = Object.keys(carrinho).filter(k => carrinho[k].qtd > 0);
-            if (itens.length === 0) return alert("Adicione algo ao carrinho!");
-
-            let texto = "*PEDIDO SAQUÁ FOOD*%0A%0A";
-            let total = 0;
+            const taxa = parseFloat(document.getElementById('select-bairro').value);
+            const select = document.getElementById('select-bairro');
+            const bairroNome = select.options[select.selectedIndex].text;
             
-            itens.forEach(nome => {
-                let subtotal = carrinho[nome].qtd * carrinho[nome].preco;
-                texto += `✅ *${carrinho[nome].qtd}x* ${nome} - R$ ${subtotal.toFixed(2)}%0A`;
-                total += subtotal;
-            });
+            let itens = ""; let total = 0;
+            for(let k in carrinho) {
+                if(carrinho[k].qtd > 0) {
+                    itens += `* ${carrinho[k].qtd}x ${k}%0A`;
+                    total += carrinho[k].preco * carrinho[k].qtd;
+                }
+            }
+            if(!itens) return alert("Carrinho vazio!");
+            if(taxa === 0 && bairros.length > 0) return alert("Escolha o bairro!");
 
-            texto += `%0A*TOTAL: R$ ${total.toFixed(2)}*%0A%0A_Favor confirmar o pedido!_`;
-            
-            // COLOQUE SEU ZAP ABAIXO
-            const meuZap = "5521999999999"; 
-            window.location.href = `https://wa.me/${meuZap}?text=${texto}`;
+            const texto = `*NOVO PEDIDO*%0A%0A${itens}%0A🛵 *Entrega:* ${bairroNome}%0A💰 *TOTAL: R$ ${(total + taxa).toFixed(2)}*`;
+            window.location.href = "https://wa.me/5521999999999?text=" + texto;
         }
-
-        carregarCardapio();
+        carregar();
     </script>
 </body>
 </html>

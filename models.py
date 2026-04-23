@@ -14,3 +14,9 @@ class Cliente(Base):
     nome = Column(String)
     telefone = Column(String)
     endereco = Column(String)
+
+class Bairro(Base):
+    __tablename__ = "bairros"
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String)
+    taxa = Column(Float)

@@ -10,44 +10,34 @@ app = FastAPI()
 security = HTTPBasic()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-def verificar_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != "admin" or credentials.password != "saqua123":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Acesso Negado")
-    return credentials.username
+def ver_admin(cred: HTTPBasicCredentials = Depends(security)):
+    if cred.username != "admin" or cred.password != "saqua123":
+        raise HTTPException(status_code=401)
+    return cred.username
 
 @app.get("/", response_class=HTMLResponse)
 def home():
     with open("templates/index.html", "r", encoding="utf-8") as f: return f.read()
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin(username: str = Depends(verificar_admin)):
+def admin(u=Depends(ver_admin)):
     with open("templates/admin.html", "r", encoding="utf-8") as f: return f.read()
 
-# --- ROTAS DE PRODUTOS ---
 @app.get("/api/produtos")
-def listar_p(db: Session = Depends(database.get_db)): return db.query(models.Produto).all()
+def list_p(db: Session = Depends(database.get_db)): return db.query(models.Produto).all()
+
+@app.get("/api/bairros")
+def list_b(db: Session = Depends(database.get_db)): return db.query(models.Bairro).all()
 
 @app.post("/api/admin/produtos")
-def cadastrar_p(nome: str, preco: float, imagem: str, db: Session = Depends(database.get_db), u=Depends(verificar_admin)):
-    novo = models.Produto(nome=nome, preco=preco, imagem=imagem)
-    db.add(novo)
-    db.commit()
-    return {"s": "ok"}
+def add_p(nome:str, preco:float, imagem:str, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
+    db.add(models.Produto(nome=nome, preco=preco, imagem=imagem)); db.commit(); return {"s":"ok"}
 
-# --- ROTAS DE CLIENTES ---
-@app.get("/api/admin/clientes")
-def listar_c(db: Session = Depends(database.get_db), u=Depends(verificar_admin)):
-    return db.query(models.Cliente).all()
+@app.post("/api/admin/bairros")
+def add_b(nome:str, taxa:float, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
+    db.add(models.Bairro(nome=nome, taxa=taxa)); db.commit(); return {"s":"ok"}
 
-@app.post("/api/admin/clientes")
-def cadastrar_c(nome: str, tel: str, end: str, db: Session = Depends(database.get_db), u=Depends(verificar_admin)):
-    novo = models.Cliente(nome=nome, telefone=tel, endereco=end)
-    db.add(novo)
-    db.commit()
-    return {"s": "ok"}
-
-@app.delete("/api/admin/clientes/{c_id}")
-def deletar_c(c_id: int, db: Session = Depends(database.get_db), u=Depends(verificar_admin)):
-    c = db.query(models.Cliente).filter(models.Cliente.id == c_id).first()
-    db.delete(c); db.commit()
-    return {"s": "ok"}
+@app.delete("/api/admin/bairros/{b_id}")
+def del_b(b_id:int, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
+    b = db.query(models.Bairro).filter(models.Bairro.id == b_id).first()
+    db.delete(b); db.commit(); return {"s":"ok"}

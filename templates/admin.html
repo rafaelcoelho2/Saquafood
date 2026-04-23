@@ -3,75 +3,85 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Painel Admin</title>
+    <title>Saquá Food - Admin</title>
 </head>
-<body class="bg-gray-100 p-4">
-    <div class="max-w-xl mx-auto">
-        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6">
-            <h2 id="titulo-form" class="font-bold mb-4 text-blue-600">CADASTRAR NOVO</h2>
-            <input id="prod_id" type="hidden">
-            <input id="nome" type="text" placeholder="Nome" class="w-full p-3 border rounded-xl mb-2">
-            <input id="preco" type="number" placeholder="Preço" class="w-full p-3 border rounded-xl mb-2">
-            <input id="imagem" type="text" placeholder="Link da Foto" class="w-full p-3 border rounded-xl mb-4">
-            <button onclick="enviar()" id="btn-enviar" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg">SALVAR</button>
-            <button onclick="limpar()" id="btn-cancelar" class="hidden w-full mt-2 text-gray-500 text-sm">Cancelar Edição</button>
-        </div>
+<body class="bg-gray-100 font-sans pb-20">
+    <nav class="bg-blue-600 p-4 text-white flex justify-around font-bold shadow-lg sticky top-0 z-50 text-[10px]">
+        <button onclick="aba('produtos')">🍔 LANCHES</button>
+        <button onclick="aba('bairros')">🛵 ENTREGAS</button>
+        <button onclick="aba('clientes')">👥 CLIENTES</button>
+    </nav>
 
-        <div id="lista-admin" class="space-y-3"></div>
+    <div id="aba-produtos" class="p-4 max-w-xl mx-auto">
+        <div class="bg-white p-6 rounded-3xl shadow-md mb-6">
+            <h2 class="font-bold mb-4 text-blue-600 uppercase italic text-sm">Novo Lanche</h2>
+            <input id="p_nome" type="text" placeholder="Nome" class="w-full p-3 border rounded-xl mb-2 text-sm">
+            <input id="p_preco" type="number" placeholder="Preço" class="w-full p-3 border rounded-xl mb-2 text-sm">
+            <input id="p_imagem" type="text" placeholder="Link da Imagem" class="w-full p-3 border rounded-xl mb-4 text-sm">
+            <button onclick="salvarP()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg">SALVAR</button>
+        </div>
+        <div id="lista-p" class="space-y-3"></div>
+    </div>
+
+    <div id="aba-bairros" class="p-4 max-w-xl mx-auto hidden">
+        <div class="bg-white p-6 rounded-3xl shadow-md mb-6 border-t-4 border-yellow-400">
+            <h2 class="font-bold mb-4 text-yellow-600 uppercase italic text-sm">Taxas de Entrega</h2>
+            <input id="b_nome" type="text" placeholder="Ex: Itaúna" class="w-full p-3 border rounded-xl mb-2 text-sm">
+            <input id="b_taxa" type="number" placeholder="Valor (ex: 7.00)" class="w-full p-3 border rounded-xl mb-4 text-sm">
+            <button onclick="salvarB()" class="w-full bg-yellow-500 text-white font-bold py-3 rounded-xl shadow-lg">ADICIONAR</button>
+        </div>
+        <div id="lista-b" class="space-y-2"></div>
     </div>
 
     <script>
-        async function carregar() {
-            const res = await fetch('/api/produtos');
-            const produtos = await res.json();
-            const lista = document.getElementById('lista-admin');
-            lista.innerHTML = '';
-            produtos.forEach(p => {
-                lista.innerHTML += `
-                <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <img src="${p.imagem}" class="w-12 h-12 rounded-lg object-cover">
-                        <div><p class="font-bold">${p.nome}</p><p class="text-blue-600">R$ ${p.preco}</p></div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick='prepararEdicao(${JSON.stringify(p)})' class="text-blue-500 font-bold">Editar</button>
-                        <button onclick="remover(${p.id})" class="text-red-500 font-bold">X</button>
-                    </div>
-                </div>`;
+        function aba(n) {
+            ['produtos', 'bairros', 'clientes'].forEach(a => {
+                document.getElementById('aba-'+a)?.classList.toggle('hidden', a !== n);
             });
+            carregar();
         }
 
-        function prepararEdicao(p) {
-            document.getElementById('prod_id').value = p.id;
-            document.getElementById('nome').value = p.nome;
-            document.getElementById('preco').value = p.preco;
-            document.getElementById('imagem').value = p.imagem;
-            document.getElementById('titulo-form').innerText = "EDITANDO: " + p.nome;
-            document.getElementById('btn-enviar').classList.replace('bg-blue-600', 'bg-orange-500');
-            document.getElementById('btn-cancelar').classList.remove('hidden');
+        async function carregar() {
+            // LISTA COM FOTOS AGORA
+            const resP = await fetch('/api/produtos');
+            const produtos = await resP.json();
+            document.getElementById('lista-p').innerHTML = produtos.map(p => `
+                <div class="bg-white p-3 rounded-2xl flex justify-between items-center shadow-sm border-l-4 border-blue-500">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.imagem}" class="w-12 h-12 rounded-xl object-cover bg-gray-100">
+                        <div>
+                            <p class="font-bold text-sm">${p.nome}</p>
+                            <p class="text-blue-600 text-xs font-bold">R$ ${p.preco.toFixed(2)}</p>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            const resB = await fetch('/api/bairros');
+            const bairros = await resB.json();
+            document.getElementById('lista-b').innerHTML = bairros.map(b => `
+                <div class="bg-white p-3 rounded-xl flex justify-between items-center shadow-sm border-l-4 border-yellow-400">
+                    <div><p class="font-bold text-sm">${b.nome}</p><p class="text-xs text-yellow-600">Frete: R$ ${b.taxa.toFixed(2)}</p></div>
+                    <button onclick="deletarB(${b.id})" class="text-red-500 font-bold text-[10px]">REMOVER</button>
+                </div>`).join('');
         }
 
-        async function enviar() {
-            const id = document.getElementById('prod_id').value;
-            const n = document.getElementById('nome').value;
-            const p = document.getElementById('preco').value;
-            const i = document.getElementById('imagem').value;
-            const url = id ? `/api/admin/produtos/${id}?nome=${n}&preco=${p}&imagem=${i}` : `/api/admin/produtos?nome=${n}&preco=${p}&imagem=${i}`;
-            await fetch(url, { method: id ? 'PUT' : 'POST' });
-            limpar(); carregar();
+        async function salvarP() {
+            const n = document.getElementById('p_nome').value, p = document.getElementById('p_preco').value, i = document.getElementById('p_imagem').value;
+            await fetch(`/api/admin/produtos?nome=${n}&preco=${p}&imagem=${i}`, {method:'POST'});
+            carregar(); alert("Lanche salvo!");
         }
 
-        function limpar() {
-            document.getElementById('prod_id').value = '';
-            document.getElementById('nome').value = '';
-            document.getElementById('preco').value = '';
-            document.getElementById('imagem').value = '';
-            document.getElementById('titulo-form').innerText = "CADASTRAR NOVO";
-            document.getElementById('btn-enviar').classList.replace('bg-orange-500', 'bg-blue-600');
-            document.getElementById('btn-cancelar').classList.add('hidden');
+        async function salvarB() {
+            const n = document.getElementById('b_nome').value, t = document.getElementById('b_taxa').value;
+            await fetch(`/api/admin/bairros?nome=${n}&taxa=${t}`, {method:'POST'});
+            carregar();
         }
 
-        async function remover(id) { if(confirm('Apagar?')) { await fetch('/api/admin/produtos/'+id, {method:'DELETE'}); carregar(); } }
+        async function deletarB(id) {
+            await fetch(`/api/admin/bairros/${id}`, {method:'DELETE'});
+            carregar();
+        }
+
         carregar();
     </script>
 </body>
