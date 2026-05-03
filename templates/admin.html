@@ -1,88 +1,140 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <title>Saquá Food - Admin</title>
-</head>
-<body class="bg-gray-100 font-sans pb-20">
-    <nav class="bg-blue-600 p-4 text-white flex justify-around font-bold shadow-lg sticky top-0 z-50 text-[10px]">
-        <button onclick="aba('produtos')">🍔 LANCHES</button>
-        <button onclick="aba('bairros')">🛵 ENTREGAS</button>
-        <button onclick="aba('clientes')">👥 CLIENTES</button>
-    </nav>
+    <meta charset="UTF-8">
+    <title>Admin Saquafood</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto 20px auto; }
+        h2 { color: #e50914; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        
+        /* Estilo do Lançador */
+        .item-venda { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
+        .linha-topo { display: flex; justify-content: space-between; align-items: center; }
+        .btn-qtd { background: #e50914; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+        .btn-qtd.menos { background: #666; }
+        .obs-item { width: 100%; padding: 8px; margin-top: 8px; border: 1px solid #eee; border-radius: 5px; font-size: 0.85rem; background: #fafafa; box-sizing: border-box; }
+        
+        /* Estilo Geral de Inputs */
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-enviar { background: #28a745; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .resumo { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 10px 0; font-weight: bold; color: #856404; border: 1px solid #ffeeba; }
 
-    <div id="aba-produtos" class="p-4 max-w-xl mx-auto">
-        <div class="bg-white p-6 rounded-3xl shadow-md mb-6">
-            <h2 class="font-bold mb-4 text-blue-600 uppercase italic text-sm">Novo Lanche</h2>
-            <input id="p_nome" type="text" placeholder="Nome" class="w-full p-3 border rounded-xl mb-2 text-sm">
-            <input id="p_preco" type="number" placeholder="Preço" class="w-full p-3 border rounded-xl mb-2 text-sm">
-            <input id="p_imagem" type="text" placeholder="Link da Imagem" class="w-full p-3 border rounded-xl mb-4 text-sm">
-            <button onclick="salvarP()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg">SALVAR</button>
+        /* Estilo da Lista de Gerenciamento (O que você pediu para voltar) */
+        .lista-gerenciar { margin-top: 20px; }
+        .item-gerencia { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+        .detalhes-lanche { flex-grow: 1; }
+        .nome-lanche { font-size: 1.1rem; font-weight: bold; color: #333; }
+        .preco-lanche { color: #28a745; font-weight: bold; margin-left: 10px; }
+        .desc-lanche { color: #666; font-size: 0.9rem; margin-top: 4px; display: block; }
+        .btn-excluir { color: #ff4444; text-decoration: none; font-weight: bold; font-size: 0.8rem; padding: 5px 10px; border: 1px solid #ff4444; border-radius: 5px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🛒 Lançar Pedido Presencial</h2>
+        <input type="text" id="mesa_v" placeholder="Nº da Mesa">
+        <input type="text" id="nome_v" placeholder="Nome do Cliente">
+        
+        <div style="margin: 20px 0;">
+            {% for p in produtos %}
+            <div class="item-venda">
+                <div class="linha-topo">
+                    <strong>{{ p.nome }}</strong>
+                    <div>
+                        <button class="btn-qtd menos" onclick="alt('{{ p.nome }}', -1)">-</button>
+                        <b id="q-{{ p.nome }}" style="margin: 0 10px;">0</b>
+                        <button class="btn-qtd" onclick="alt('{{ p.nome }}', 1)">+</button>
+                    </div>
+                </div>
+                <input type="text" id="obs-{{ p.nome }}" class="obs-item" placeholder="Observação para este item...">
+            </div>
+            {% endfor %}
         </div>
-        <div id="lista-p" class="space-y-3"></div>
+
+        <select id="pag_v">
+            <option value="Pix">Pix</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão">Cartão</option>
+        </select>
+
+        <div class="resumo" id="res_display">Pedido: Vazio</div>
+
+        <form action="/pedir/presencial" method="post" id="form_p">
+            <input type="hidden" name="cliente" id="h_mesa">
+            <input type="hidden" name="cliente_nome" id="h_nome">
+            <input type="hidden" name="itens" id="h_itens">
+            <input type="hidden" name="pagamento" id="h_pag">
+            <button type="button" class="btn-enviar" onclick="enviar()">ENVIAR PARA COZINHA</button>
+        </form>
     </div>
 
-    <div id="aba-bairros" class="p-4 max-w-xl mx-auto hidden">
-        <div class="bg-white p-6 rounded-3xl shadow-md mb-6 border-t-4 border-yellow-400">
-            <h2 class="font-bold mb-4 text-yellow-600 uppercase italic text-sm">Taxas de Entrega</h2>
-            <input id="b_nome" type="text" placeholder="Ex: Itaúna" class="w-full p-3 border rounded-xl mb-2 text-sm">
-            <input id="b_taxa" type="number" placeholder="Valor (ex: 7.00)" class="w-full p-3 border rounded-xl mb-4 text-sm">
-            <button onclick="salvarB()" class="w-full bg-yellow-500 text-white font-bold py-3 rounded-xl shadow-lg">ADICIONAR</button>
+    <div class="card">
+        <h2>🍔 Gerenciar Produtos</h2>
+        <form action="/admin/salvar" method="post">
+            <input name="nome" placeholder="Nome do Lanche" required>
+            <input name="preco" type="number" step="0.01" placeholder="Preço (Ex: 25.00)" required>
+            <input name="categoria" placeholder="Categoria (Lanches, Bebidas, etc)">
+            <textarea name="descricao" placeholder="O que esse lanche leva? (Ingredientes)"></textarea>
+            <input name="imagem_url" placeholder="URL da imagem (opcional)">
+            <button type="submit" class="btn-enviar" style="background:#007bff">SALVAR NOVO PRODUTO</button>
+        </form>
+
+        <div class="lista-gerenciar">
+            <h3>📋 Itens no Cardápio</h3>
+            {% for p in produtos %}
+            <div class="item-gerencia">
+                <div class="detalhes-lanche">
+                    <span class="nome-lanche">{{ p.nome }}</span>
+                    <span class="preco-lanche">R$ {{ "%.2f"|format(p.preco) }}</span>
+                    <span class="desc-lanche">{{ p.descricao if p.descricao else "Sem descrição." }}</span>
+                </div>
+                <a href="/admin/excluir/{{p.id}}" class="btn-excluir" onclick="return confirm('Excluir {{p.nome}}?')">Remover</a>
+            </div>
+            {% endfor %}
         </div>
-        <div id="lista-b" class="space-y-2"></div>
     </div>
 
     <script>
-        function aba(n) {
-            ['produtos', 'bairros', 'clientes'].forEach(a => {
-                document.getElementById('aba-'+a)?.classList.toggle('hidden', a !== n);
-            });
-            carregar();
+        let ped = {};
+
+        function alt(nome, v) {
+            if(!ped[nome]) ped[nome] = 0;
+            ped[nome] += v;
+            if(ped[nome] < 0) ped[nome] = 0;
+            document.getElementById('q-'+nome).innerText = ped[nome];
+            atualizar();
         }
 
-        async function carregar() {
-            // LISTA COM FOTOS AGORA
-            const resP = await fetch('/api/produtos');
-            const produtos = await resP.json();
-            document.getElementById('lista-p').innerHTML = produtos.map(p => `
-                <div class="bg-white p-3 rounded-2xl flex justify-between items-center shadow-sm border-l-4 border-blue-500">
-                    <div class="flex items-center gap-3">
-                        <img src="${p.imagem}" class="w-12 h-12 rounded-xl object-cover bg-gray-100">
-                        <div>
-                            <p class="font-bold text-sm">${p.nome}</p>
-                            <p class="text-blue-600 text-xs font-bold">R$ ${p.preco.toFixed(2)}</p>
-                        </div>
-                    </div>
-                </div>`).join('');
-
-            const resB = await fetch('/api/bairros');
-            const bairros = await resB.json();
-            document.getElementById('lista-b').innerHTML = bairros.map(b => `
-                <div class="bg-white p-3 rounded-xl flex justify-between items-center shadow-sm border-l-4 border-yellow-400">
-                    <div><p class="font-bold text-sm">${b.nome}</p><p class="text-xs text-yellow-600">Frete: R$ ${b.taxa.toFixed(2)}</p></div>
-                    <button onclick="deletarB(${b.id})" class="text-red-500 font-bold text-[10px]">REMOVER</button>
-                </div>`).join('');
+        function atualizar() {
+            let s = "";
+            for(let k in ped) {
+                if(ped[k] > 0) {
+                    let obs = document.getElementById('obs-' + k).value;
+                    s += ped[k] + "x " + k + (obs ? " ("+obs+")" : "") + "; ";
+                }
+            }
+            document.getElementById('res_display').innerText = "Pedido: " + (s || "Vazio");
+            document.getElementById('h_itens').value = s;
         }
 
-        async function salvarP() {
-            const n = document.getElementById('p_nome').value, p = document.getElementById('p_preco').value, i = document.getElementById('p_imagem').value;
-            await fetch(`/api/admin/produtos?nome=${n}&preco=${p}&imagem=${i}`, {method:'POST'});
-            carregar(); alert("Lanche salvo!");
-        }
+        document.querySelectorAll('.obs-item').forEach(el => {
+            el.addEventListener('input', atualizar);
+        });
 
-        async function salvarB() {
-            const n = document.getElementById('b_nome').value, t = document.getElementById('b_taxa').value;
-            await fetch(`/api/admin/bairros?nome=${n}&taxa=${t}`, {method:'POST'});
-            carregar();
+        function enviar() {
+            const m = document.getElementById('mesa_v').value;
+            const n = document.getElementById('nome_v').value;
+            const itens = document.getElementById('h_itens').value;
+            if(!m || !n || !itens) return alert("Preencha Mesa, Nome e adicione pelo menos um item!");
+            
+            document.getElementById('h_mesa').value = "Mesa " + m;
+            document.getElementById('h_nome').value = n;
+            document.getElementById('h_pag').value = document.getElementById('pag_v').value;
+            document.getElementById('form_p').submit();
         }
-
-        async function deletarB(id) {
-            await fetch(`/api/admin/bairros/${id}`, {method:'DELETE'});
-            carregar();
-        }
-
-        carregar();
     </script>
 </body>
 </html>

@@ -1,43 +1,68 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import FastAPI, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 import models, database
 
-models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
-security = HTTPBasic()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+templates = Jinja2Templates(directory="templates")
+models.Base.metadata.create_all(bind=database.engine)
 
-def ver_admin(cred: HTTPBasicCredentials = Depends(security)):
-    if cred.username != "admin" or cred.password != "saqua123":
-        raise HTTPException(status_code=401)
-    return cred.username
+def get_db():
+    db = database.SessionLocal()
+    try: yield db
+    finally: db.close()
+
+class PedidoSchema(BaseModel):
+    cliente_nome: str
+    itens: str
+    pagamento: str
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    with open("templates/index.html", "r", encoding="utf-8") as f: return f.read()
+async def home(request: Request, db: Session = Depends(get_db)):
+    itens = db.query(models.Produto).all()
+    return templates.TemplateResponse(request=request, name="index.html", context={"produtos": itens})
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin(u=Depends(ver_admin)):
-    with open("templates/admin.html", "r", encoding="utf-8") as f: return f.read()
+async def admin(request: Request, db: Session = Depends(get_db)):
+    itens = db.query(models.Produto).all()
+    return templates.TemplateResponse(request=request, name="admin.html", context={"produtos": itens})
 
-@app.get("/api/produtos")
-def list_p(db: Session = Depends(database.get_db)): return db.query(models.Produto).all()
+@app.get("/cozinha", response_class=HTMLResponse)
+async def ver_cozinha(request: Request, db: Session = Depends(get_db)):
+    fila = db.query(models.PedidoFila).filter(models.PedidoFila.status != "Pronto").order_by(models.PedidoFila.prioridade.asc(), models.PedidoFila.hora.asc()).all()
+    return templates.TemplateResponse(request=request, name="cozinha.html", context={"pedidos": fila})
 
-@app.get("/api/bairros")
-def list_b(db: Session = Depends(database.get_db)): return db.query(models.Bairro).all()
+@app.post("/api/pedido")
+async def pedido_site(dados: PedidoSchema, db: Session = Depends(get_db)):
+    novo = models.PedidoFila(cliente="Online", cliente_nome=dados.cliente_nome, itens=dados.itens, pagamento=dados.pagamento, origem="Site", prioridade=2)
+    db.add(novo)
+    db.commit()
+    return {"status": "ok"}
 
-@app.post("/api/admin/produtos")
-def add_p(nome:str, preco:float, imagem:str, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
-    db.add(models.Produto(nome=nome, preco=preco, imagem=imagem)); db.commit(); return {"s":"ok"}
+@app.post("/pedir/presencial")
+async def pedido_mesa(cliente: str = Form(...), cliente_nome: str = Form(...), itens: str = Form(...), pagamento: str = Form(...), db: Session = Depends(get_db)):
+    novo = models.PedidoFila(cliente=cliente, cliente_nome=cliente_nome, itens=itens, pagamento=pagamento, origem="Mesa", prioridade=1)
+    db.add(novo)
+    db.commit()
+    return RedirectResponse(url="/cozinha", status_code=303)
 
-@app.post("/api/admin/bairros")
-def add_b(nome:str, taxa:float, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
-    db.add(models.Bairro(nome=nome, taxa=taxa)); db.commit(); return {"s":"ok"}
+@app.post("/admin/salvar")
+async def salvar_prod(id: str = Form(None), nome: str = Form(...), preco: float = Form(...), descricao: str = Form(...), categoria: str = Form(...), imagem_url: str = Form(None), db: Session = Depends(get_db)):
+    if id:
+        p = db.query(models.Produto).filter(models.Produto.id == int(id)).first()
+        p.nome, p.preco, p.descricao, p.categoria, p.imagem_url = nome, preco, descricao, categoria, imagem_url
+    else:
+        novo = models.Produto(nome=nome, preco=preco, descricao=descricao, categoria=categoria, imagem_url=imagem_url)
+        db.add(novo)
+    db.commit()
+    return RedirectResponse(url="/admin", status_code=303)
 
-@app.delete("/api/admin/bairros/{b_id}")
-def del_b(b_id:int, db:Session=Depends(database.get_db), u=Depends(ver_admin)):
-    b = db.query(models.Bairro).filter(models.Bairro.id == b_id).first()
-    db.delete(b); db.commit(); return {"s":"ok"}
+@app.get("/admin/excluir/{id}")
+async def excluir(id: int, db: Session = Depends(get_db)):
+    p = db.query(models.Produto).filter(models.Produto.id == id).first()
+    if p:
+        db.delete(p)
+        db.commit()
+    return RedirectResponse(url="/admin", status_code=303)

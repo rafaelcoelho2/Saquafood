@@ -1,102 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <title>Saquá Food</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saquafood - Cardápio</title>
+    <style>
+        :root { --red: #e50914; --green: #25d366; --gray: #f4f4f4; }
+        body { font-family: sans-serif; background: var(--gray); margin: 0; padding-bottom: 220px; }
+        .header { background: var(--red); color: white; text-align: center; padding: 15px; font-weight: bold; font-size: 1.2rem; }
+        .card { background: white; margin: 10px; padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-qtd { background: var(--red); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 20px; border-top: 3px solid var(--red); display: none; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        .btn-finalizar { background: var(--green); color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+    </style>
 </head>
-<body class="bg-gray-50 pb-40">
-    <header class="bg-blue-600 p-6 text-white text-center shadow-lg mb-4">
-        <h1 class="text-3xl font-bold italic text-yellow-300">SAQUÁ FOOD 🍔</h1>
-    </header>
-
-    <div id="cardapio" class="p-4 max-w-md mx-auto grid gap-3"></div>
-
-    <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t rounded-t-[2rem] z-50">
-        <div class="max-w-md mx-auto">
-            <select id="select-bairro" onchange="atualizarTotal()" class="w-full p-3 mb-3 border rounded-xl bg-gray-50 font-bold text-gray-700">
-                <option value="0">🛵 Escolha o bairro (Entrega)</option>
-            </select>
-            <div class="flex justify-between items-center px-2">
-                <div class="leading-tight">
-                    <p class="text-gray-400 text-xs">Total com entrega:</p>
-                    <p id="total-carrinho" class="text-2xl font-black text-blue-600 text-yellow-500">R$ 0,00</p>
+<body>
+    <div class="header">SAQUAFOOD</div>
+    
+    <div id="lista-produtos" style="padding: 10px;">
+        {% for p in produtos %}
+        <div class="card">
+            <div>
+                <div style="font-weight: bold;">{{ p.nome }}</div>
+                <div style="color: #28a745; font-weight: bold;">R$ {{ "%.2f"|format(p.preco) }}</div>
+                <div style="margin-top: 10px; display: flex; align-items: center; gap: 15px;">
+                    <button class="btn-qtd" onclick="mudar('{{p.id}}', -1, '{{p.nome}}', {{p.preco}})">-</button>
+                    <b id="qtd-{{p.id}}">0</b>
+                    <button class="btn-qtd" onclick="mudar('{{p.id}}', 1, '{{p.nome}}', {{p.preco}})">+</button>
                 </div>
-                <button onclick="enviarZap()" class="bg-green-500 text-white px-8 py-4 rounded-2xl font-bold shadow-lg">PEDIR AGORA</button>
             </div>
+            {% if p.imagem_url %}<img src="{{p.imagem_url}}" style="width: 60px; height: 60px; border-radius: 8px;">{% endif %}
         </div>
+        {% endfor %}
+    </div>
+
+    <div class="footer" id="cart">
+        <input type="text" id="nome_cliente" placeholder="Digite seu nome" required>
+        <select id="forma_pagamento">
+            <option value="Pix">Pix</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão">Cartão</option>
+        </select>
+        <button class="btn-finalizar" onclick="enviarPedido()">Pedir pelo WhatsApp • R$ <span id="total-val">0.00</span></button>
     </div>
 
     <script>
         let carrinho = {};
-        let bairros = [];
-
-        async function carregar() {
-            const resP = await fetch('/api/produtos');
-            const produtos = await resP.json();
-            document.getElementById('cardapio').innerHTML = produtos.map(p => `
-                <div class="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 border border-gray-100">
-                    <img src="${p.imagem}" class="w-16 h-16 rounded-xl object-cover">
-                    <div class="flex-1">
-                        <h3 class="font-bold text-gray-800 text-sm">${p.nome}</h3>
-                        <p class="text-blue-600 font-bold">R$ ${p.preco.toFixed(2)}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="mudar('${p.nome}', ${p.preco}, -1)" class="w-8 h-8 bg-gray-100 rounded-full font-bold">-</button>
-                        <span id="qtd-${p.nome.replace(/\s+/g,'')}" class="font-bold">0</span>
-                        <button onclick="mudar('${p.nome}', ${p.preco}, 1)" class="w-8 h-8 bg-blue-600 text-white rounded-full font-bold">+</button>
-                    </div>
-                </div>`).join('');
-
-            const resB = await fetch('/api/bairros');
-            bairros = await resB.json();
-            const select = document.getElementById('select-bairro');
-            bairros.forEach(b => {
-                const opt = document.createElement('option');
-                opt.value = b.taxa;
-                opt.text = `📍 ${b.nome} (R$ ${b.taxa.toFixed(2)})`;
-                select.add(opt);
-            });
-        }
-
-        function mudar(nome, preco, val) {
-            if(!carrinho[nome]) carrinho[nome] = {preco, qtd: 0};
-            carrinho[nome].qtd += val;
-            if(carrinho[nome].qtd <= 0) {
-                carrinho[nome].qtd = 0;
-                document.getElementById('qtd-'+nome.replace(/\s+/g,'')).innerText = 0;
-            } else {
-                document.getElementById('qtd-'+nome.replace(/\s+/g,'')).innerText = carrinho[nome].qtd;
-            }
-            atualizarTotal();
-        }
-
-        function atualizarTotal() {
-            let subtotal = 0;
-            for(let k in carrinho) subtotal += carrinho[k].preco * carrinho[k].qtd;
-            const taxa = parseFloat(document.getElementById('select-bairro').value);
-            document.getElementById('total-carrinho').innerText = "R$ " + (subtotal + taxa).toFixed(2);
-        }
-
-        function enviarZap() {
-            const taxa = parseFloat(document.getElementById('select-bairro').value);
-            const select = document.getElementById('select-bairro');
-            const bairroNome = select.options[select.selectedIndex].text;
+        function mudar(id, d, nome, preco) {
+            if(!carrinho[id]) carrinho[id] = {nome, preco, qtd: 0};
+            carrinho[id].qtd += d;
+            if(carrinho[id].qtd <= 0) delete carrinho[id];
             
-            let itens = ""; let total = 0;
-            for(let k in carrinho) {
-                if(carrinho[k].qtd > 0) {
-                    itens += `* ${carrinho[k].qtd}x ${k}%0A`;
-                    total += carrinho[k].preco * carrinho[k].qtd;
-                }
-            }
-            if(!itens) return alert("Carrinho vazio!");
-            if(taxa === 0 && bairros.length > 0) return alert("Escolha o bairro!");
-
-            const texto = `*NOVO PEDIDO*%0A%0A${itens}%0A🛵 *Entrega:* ${bairroNome}%0A💰 *TOTAL: R$ ${(total + taxa).toFixed(2)}*`;
-            window.location.href = "https://wa.me/5521999999999?text=" + texto;
+            document.getElementById('qtd-'+id).innerText = carrinho[id] ? carrinho[id].qtd : 0;
+            
+            let total = 0;
+            for(let k in carrinho) total += carrinho[k].qtd * carrinho[k].preco;
+            
+            document.getElementById('cart').style.display = total > 0 ? 'block' : 'none';
+            document.getElementById('total-val').innerText = total.toFixed(2);
         }
-        carregar();
+
+        async function enviarPedido() {
+            const nome = document.getElementById('nome_cliente').value;
+            const pgto = document.getElementById('forma_pagamento').value;
+            if(!nome) return alert("Por favor, digite seu nome!");
+
+            let resumo = "";
+            let msgZap = "*NOVO PEDIDO SAQUAFOOD*\n";
+            msgZap += "*Cliente:* " + nome + "\n";
+            msgZap += "*Pagamento:* " + pgto + "\n\n";
+
+            for(let id in carrinho) {
+                resumo += carrinho[id].qtd + "x " + carrinho[id].nome + "; ";
+                msgZap += carrinho[id].qtd + "x " + carrinho[id].nome + "\n";
+            }
+
+            // Envia para a sua fila da cozinha no Termux
+            await fetch('/api/pedido', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ cliente_nome: nome, itens: resumo, pagamento: pgto })
+            });
+
+            window.open("https://wa.me/5522998765432?text=" + encodeURIComponent(msgZap));
+        }
     </script>
 </body>
 </html>

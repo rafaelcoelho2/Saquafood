@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cozinha</title>
+    <meta http-equiv="refresh" content="10">
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
+        .pedido { padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 15px solid; }
+        .mesa { background: #28a745; border-color: #1e7e34; }
+        .site { background: #ffc107; border-color: #d39e00; color: black; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Produção</h1>
+    {% for p in pedidos %}
+    <div class="pedido {{ 'mesa' if p.origem == 'Mesa' else 'site' }}">
+        <b>{{ p.origem }} ({{ p.cliente }})</b> | 🕒 {{ p.hora.strftime('%H:%M') }}<br>
+        <h2 style="margin:5px 0;">{{ p.cliente_nome }}</h2>
+        <p style="font-size: 1.3em;">{{ p.itens }}</p>
+        <span style="background:rgba(0,0,0,0.2); padding:5px; border-radius:5px;">💰 Pagamento: {{ p.pagamento }}</span>
+    </div>
+    {% endfor %}
+</body>
+</html>
